@@ -1,0 +1,17 @@
+import("rtt_gazebo_embedded")
+import("rtt-gazebo-barrett-hand-sim")
+import("eigen_typekit")
+import("kdl_typekit")
+import("rst-rt_typekit")
+
+loadComponent("gazebo","RTTGazeboEmbedded");
+setActivity("gazebo",0,10,ORO_SCHED_OTHER);
+gazebo.configure()
+gazebo.start()
+# gazebo.spawn_model_at_pos("barrett-bh8", "model://barrett-bh8", 0, 0, 0);
+
+gazebo.spawn_model_at_pos("barrett-bh8", "model://kuka-lwr-4plus-triangle-tilted-bh8", 0, 0, 0);
+
+loadComponent("hand", "cosima::BarrettHandSim")
+hand.getModel("barrett-bh8")
+hand.configure()

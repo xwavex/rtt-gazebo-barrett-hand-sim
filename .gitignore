@@ -1,0 +1,10 @@
+build/
+*~
+*.txt
+!CMakeLists.txt
+*.log
+.project
+.cproject
+.vscode/
+orograph.dot
+reports.dat
