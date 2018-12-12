@@ -53,6 +53,8 @@ BarrettHandSim::BarrettHandSim(const std::string &name) : TaskContext(name), is_
 	this->addProperty("p_gain", p_gain);
 	this->addProperty("d_gain", d_gain);
 
+	this->addProperty("velocity_gain", velocity_gain);
+
 	this->addProperty("urdf_prefix", urdf_prefix);
 
 	// this->addOperation("debugVelocity", &BarrettHandSim::debugVelocity, this, ClientThread);
