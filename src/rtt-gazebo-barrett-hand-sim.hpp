@@ -35,6 +35,7 @@
 #include <rst-rt/kinematics/JointAngles.hpp>
 #include <rst-rt/kinematics/JointVelocities.hpp>
 #include <rst-rt/dynamics/JointTorques.hpp>
+#include <rst-rt/dynamics/Wrench.hpp>
 
 #include <kdl/velocityprofile_trap.hpp>
 
@@ -80,12 +81,18 @@ class BarrettHandSim : public RTT::TaskContext
 	gazebo::physics::Joint_V model_joints_;
 	gazebo::physics::Link_V model_links_;
 
-	std::vector<int> joints_idx_;
+	gazebo::physics::JointPtr parentJointForFT;
+
+	std::vector<int>
+		joints_idx_;
 	std::vector<std::string> joint_names_;
 
 	//    Ports:
 	RTT::OutputPort<rstrt::robot::JointState> out_hand_JointFeedback_port;
 	rstrt::robot::JointState out_hand_JointFeedback;
+
+	RTT::OutputPort<rstrt::dynamics::Wrench> out_hand_FT_port;
+	rstrt::dynamics::Wrench out_hand_FT;
 
 	RTT::InputPort<rstrt::kinematics::JointAngles> in_hand_JointPositionCtrl_port;
 	RTT::FlowStatus in_hand_JointPositionCtrl_flow;
@@ -176,6 +183,8 @@ class BarrettHandSim : public RTT::TaskContext
 	RunMode run_mode;
 	InitState init_state;
 
+	void fixAngles();
+
   private:
 	bool is_configured;
 
@@ -187,6 +196,8 @@ class BarrettHandSim : public RTT::TaskContext
 	// bool sensorsRegistered;
 
 	std::string urdf_prefix;
+
+	float s_angle, f_angle, b_angle;
 };
 
 } // namespace cosima

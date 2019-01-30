@@ -40,6 +40,8 @@ BarrettHandSim::BarrettHandSim(const std::string &name) : TaskContext(name), is_
 
 	this->addOperation("setControlMode", &BarrettHandSim::setControlMode, this, ClientThread);
 
+	this->addOperation("fixAngles", &BarrettHandSim::fixAngles, this, ClientThread);
+
 	this->addOperation("open", &BarrettHandSim::open, this, ClientThread);
 	this->addOperation("close", &BarrettHandSim::close, this, ClientThread);
 	this->addOperation("openSpread", &BarrettHandSim::openSpread, this, ClientThread);
@@ -56,6 +58,13 @@ BarrettHandSim::BarrettHandSim(const std::string &name) : TaskContext(name), is_
 	this->addProperty("velocity_gain", velocity_gain);
 
 	this->addProperty("urdf_prefix", urdf_prefix);
+
+	s_angle = 0;
+	f_angle = 0;
+	b_angle = 0;
+	this->addProperty("s_angle", s_angle);
+	this->addProperty("f_angle", f_angle);
+	this->addProperty("b_angle", b_angle);
 
 	// this->addOperation("debugVelocity", &BarrettHandSim::debugVelocity, this, ClientThread);
 	// this->addOperation("debugPose", &BarrettHandSim::debugPose, this, ClientThread);
@@ -123,9 +132,8 @@ bool BarrettHandSim::configureHook()
 	// this->initialize();
 
 	out_hand_JointFeedback = rstrt::robot::JointState(model_joints_.size());
-
 	this->addPort("hand_JointFeedback", out_hand_JointFeedback_port).doc("Output port for the joint feedback.");
-	rstrt::robot::JointState out_hand_JointFeedback = rstrt::robot::JointState(model_joints_.size());
+	// rstrt::robot::JointState out_hand_JointFeedback = rstrt::robot::JointState(model_joints_.size());
 	out_hand_JointFeedback_port.setDataSample(out_hand_JointFeedback);
 
 	this->addPort("hand_JointPositionCtrl", in_hand_JointPositionCtrl_port).doc("Input port for commands based on position control mode");
@@ -142,6 +150,13 @@ bool BarrettHandSim::configureHook()
 	in_hand_JointTorqueCtrl_flow = RTT::NoData;
 	in_hand_JointTorqueCtrl = rstrt::dynamics::JointTorques(N_PUCKS);
 	in_hand_JointTorqueCtrl_new = rstrt::dynamics::JointTorques(N_PUCKS);
+
+	if (parentJointForFT)
+	{
+		out_hand_FT = rstrt::dynamics::Wrench();
+		this->addPort("hand_FT", out_hand_FT_port).doc("Output port for the force torque feedback.");
+		out_hand_FT_port.setDataSample(out_hand_FT);
+	}
 
 	return is_configured;
 }
@@ -237,6 +252,31 @@ bool BarrettHandSim::gazeboConfigureHook(gazebo::physics::ModelPtr model)
 	joints_idx_.clear();
 	joint_names_.clear();
 	model_joints_.clear();
+
+	gazebo::physics::LinkPtr firstLink = model->GetLink(urdf_prefix + "bhand_palm_link");
+	if (firstLink)
+	{
+		if (firstLink->GetParentJoints().size() == 1)
+		{
+			parentJointForFT = firstLink->GetParentJoints()[0];
+			if (parentJointForFT)
+			{
+				RTT::log(RTT::Info) << "Force Torque Sensor found!" << RTT::endlog();
+			}
+			else
+			{
+				RTT::log(RTT::Error) << "Force Torque Sensor not found! First parent joint ist empty!" << RTT::endlog();
+			}
+		}
+		else
+		{
+			RTT::log(RTT::Error) << "Force Torque Sensor not found! No parent joints at all!" << RTT::endlog();
+		}
+	}
+	else
+	{
+		RTT::log(RTT::Error) << "Force Torque Sensor not found! Link " << urdf_prefix << "bhand_palm_link not found!" << RTT::endlog();
+	}
 
 	gazebo::physics::JointPtr f1prox_joint = model->GetJoint(urdf_prefix + "finger_1/prox_joint");
 	if (f1prox_joint)
@@ -447,6 +487,40 @@ void BarrettHandSim::readSim()
 		out_hand_JointFeedback.torques[j] = model_joints_[j]->GetForce(0u);
 	}
 	// RTT::log(RTT::Error) << "reading from sim: " << out_hand_JointFeedback << RTT::endlog();
+
+	// Read from FT sensor
+	if (parentJointForFT)
+	{
+		gazebo::physics::JointWrench wrench = this->parentJointForFT->GetForceTorque(0u);
+
+		gazebo::math::Vector3 measuredForce = -1 * wrench.body2Force;
+		gazebo::math::Vector3 measuredTorque = -1 * wrench.body2Torque;
+
+		out_hand_FT.forces(0) = measuredForce.x;
+		out_hand_FT.forces(1) = measuredForce.y;
+		out_hand_FT.forces(2) = measuredForce.z;
+
+		out_hand_FT.torques(0) = measuredTorque.x;
+		out_hand_FT.torques(1) = measuredTorque.y;
+		out_hand_FT.torques(2) = measuredTorque.z;
+	}
+}
+
+void BarrettHandSim::fixAngles()
+{
+	// Get the finger indices
+	unsigned mid, did;
+	for (unsigned i = 0; i < 4; i++)
+	{
+		fingerToJointIDs(i, mid, did);
+		if (i == 3)
+		{
+			in_hand_JointPositionCtrl.angles(3) = out_hand_JointFeedback.angles(1);
+		}
+		in_hand_JointPositionCtrl.angles(i) = out_hand_JointFeedback.angles(mid);
+	}
+	b_angle = 0;
+	setControlMode(ControlModes::PositionCtrl);
 }
 
 void BarrettHandSim::writeSim()
@@ -477,7 +551,19 @@ void BarrettHandSim::writeSim()
 
 		if (currentControlMode == ControlModes::PositionCtrl)
 		{
-			joint_torque = p_gain * (in_hand_JointPositionCtrl.angles[i] - pos) - d_gain * vel;
+			// joint_torque = p_gain * (in_hand_JointPositionCtrl.angles[i] - pos) - d_gain * vel;
+			if (i == 3)
+			{
+				model_joints_[0]->SetPosition(0, -in_hand_JointPositionCtrl.angles[3]);
+				model_joints_[1]->SetPosition(0, in_hand_JointPositionCtrl.angles[3]);
+			}
+			else
+			{
+				model_joints_[mid]->SetPosition(0, in_hand_JointPositionCtrl.angles[i]);
+				// Keep the joint at the angle it was while it was still tightening
+				model_joints_[did]->SetPosition(0, b_angle); //breakaway_angle[i] - out_hand_JointFeedback.angles[did]);
+			}
+			continue;
 			// break;
 		}
 		// case oro_barrett_msgs::BHandCmd::MODE_TRAPEZOIDAL:
@@ -496,6 +582,8 @@ void BarrettHandSim::writeSim()
 		{
 			joint_torque = in_hand_JointTorqueCtrl.torques[i];
 		}
+
+		// return; // TODO test
 
 		if (i == 3)
 		{
@@ -516,6 +604,9 @@ void BarrettHandSim::writeSim()
 			// Get link and fingertip torque
 			link_torque[i] = model_joints_[mid]->GetForceTorque(0).body2Torque.z;
 			fingertip_torque[i] = model_joints_[did]->GetForceTorque(0).body2Torque.z;
+
+			// RTT::log(RTT::Error) << "link_torque " << link_torque << RTT::endlog();
+			// RTT::log(RTT::Error) << "fingertip_torque " << fingertip_torque << RTT::endlog();
 
 			// NOTE: The below threshold is too simple and does not capture the
 			// real behavior.
@@ -587,6 +678,8 @@ void BarrettHandSim::writeFeedbackToOrocos()
 	// center_of_mass_out.write(center_of_mass);
 
 	this->out_hand_JointFeedback_port.write(out_hand_JointFeedback);
+
+	this->out_hand_FT_port.write(out_hand_FT);
 
 	// // Create a pose structure from the center of mass
 	// com_msg.pose.position.x = center_of_mass[0];
@@ -794,6 +887,12 @@ void BarrettHandSim::close()
 	in_hand_JointVelocityCtrl.velocities[0] = 1.0;
 	in_hand_JointVelocityCtrl.velocities[1] = 1.0;
 	in_hand_JointVelocityCtrl.velocities[2] = 1.0;
+
+	// setControlMode(ControlModes::PositionCtrl);
+	// in_hand_JointPositionCtrl.angles[0] = f_angle;
+	// in_hand_JointPositionCtrl.angles[1] = f_angle;
+	// in_hand_JointPositionCtrl.angles[2] = f_angle;
+	// in_hand_JointPositionCtrl.angles[3] = s_angle;
 }
 
 void BarrettHandSim::openSpread()
