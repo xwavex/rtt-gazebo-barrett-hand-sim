@@ -487,23 +487,6 @@ void BarrettHandSim::readSim()
 		out_hand_JointFeedback.torques[j] = model_joints_[j]->GetForce(0u);
 	}
 	// RTT::log(RTT::Error) << "reading from sim: " << out_hand_JointFeedback << RTT::endlog();
-
-	// Read from FT sensor
-	if (parentJointForFT)
-	{
-		gazebo::physics::JointWrench wrench = this->parentJointForFT->GetForceTorque(0u);
-
-		gazebo::math::Vector3 measuredForce = -1 * wrench.body2Force;
-		gazebo::math::Vector3 measuredTorque = -1 * wrench.body2Torque;
-
-		out_hand_FT.forces(0) = measuredForce.x;
-		out_hand_FT.forces(1) = measuredForce.y;
-		out_hand_FT.forces(2) = measuredForce.z;
-
-		out_hand_FT.torques(0) = measuredTorque.x;
-		out_hand_FT.torques(1) = measuredTorque.y;
-		out_hand_FT.torques(2) = measuredTorque.z;
-	}
 }
 
 void BarrettHandSim::fixAngles()

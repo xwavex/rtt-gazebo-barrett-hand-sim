@@ -31,7 +31,26 @@ void BarrettHandSim::WorldUpdateEnd()
 
 	// model->SetLinearVel(newLinVel);
 	// model->SetAngularVel(newAngVel);
+	// Read from FT sensor
+	if (parentJointForFT)
+	{
+		gazebo::physics::JointWrench wrench = this->parentJointForFT->GetForceTorque(0u);
 
+		gazebo::math::Vector3 measuredForce = wrench.body2Force;
+		gazebo::math::Vector3 measuredTorque = wrench.body2Torque;
+
+		// RTT::log(RTT::Error) << "reading from sim:\n2:\n"
+		// 					 << wrench.body2Force << "\n1:\n"
+		// 					 << (-1 * wrench.body1Force) << RTT::endlog();
+
+		out_hand_FT.forces(0) = measuredForce.x;
+		out_hand_FT.forces(1) = measuredForce.y;
+		out_hand_FT.forces(2) = measuredForce.z;
+
+		out_hand_FT.torques(0) = measuredTorque.x;
+		out_hand_FT.torques(1) = measuredTorque.y;
+		out_hand_FT.torques(2) = measuredTorque.z;
+	}
 	// TODO check order
 	writeSim();
 	writeFeedbackToOrocos();
