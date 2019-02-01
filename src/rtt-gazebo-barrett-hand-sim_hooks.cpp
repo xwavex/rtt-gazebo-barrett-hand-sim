@@ -43,13 +43,25 @@ void BarrettHandSim::WorldUpdateEnd()
 		// 					 << wrench.body2Force << "\n1:\n"
 		// 					 << (-1 * wrench.body1Force) << RTT::endlog();
 
-		out_hand_FT.forces(0) = measuredForce.x;
-		out_hand_FT.forces(1) = measuredForce.y;
-		out_hand_FT.forces(2) = measuredForce.z;
+		if (zeroing_active)
+		{
+			zero_hand_FT.forces(0) = measuredForce.x;
+			zero_hand_FT.forces(1) = measuredForce.y;
+			zero_hand_FT.forces(2) = measuredForce.z;
 
-		out_hand_FT.torques(0) = measuredTorque.x;
-		out_hand_FT.torques(1) = measuredTorque.y;
-		out_hand_FT.torques(2) = measuredTorque.z;
+			zero_hand_FT.torques(0) = measuredTorque.x;
+			zero_hand_FT.torques(1) = measuredTorque.y;
+			zero_hand_FT.torques(2) = measuredTorque.z;
+			zeroing_active = false;
+		}
+
+		out_hand_FT.forces(0) = measuredForce.x - zero_hand_FT.forces(0);
+		out_hand_FT.forces(1) = measuredForce.y - zero_hand_FT.forces(1);
+		out_hand_FT.forces(2) = measuredForce.z - zero_hand_FT.forces(2);
+
+		out_hand_FT.torques(0) = measuredTorque.x - zero_hand_FT.torques(0);
+		out_hand_FT.torques(1) = measuredTorque.y - zero_hand_FT.torques(1);
+		out_hand_FT.torques(2) = measuredTorque.z - zero_hand_FT.torques(2);
 	}
 	// TODO check order
 	writeSim();

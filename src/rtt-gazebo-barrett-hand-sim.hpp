@@ -66,8 +66,11 @@ class BarrettHandSim : public RTT::TaskContext
 	// void setupPorts();
 	// void setupVars();
 
-	bool
-	setControlMode(std::string controlMode);
+	bool setControlMode(std::string controlMode);
+
+	void scheduleZeroing();
+	bool zeroing_active;
+	rstrt::dynamics::Wrench zero_hand_FT;
 
 	// void getLaserData();
 	// void processLaserData(gazebo::sensors::RaySensorPtr sensor, gazebo::physics::MultiRayShapePtr rayShape);
@@ -136,8 +139,7 @@ class BarrettHandSim : public RTT::TaskContext
 	void openSpread();
 	void closeSpread();
 
-	bool
-	doneMoving(const unsigned pair_index);
+	bool doneMoving(const unsigned pair_index);
 	bool withinTorqueLimits(const unsigned joint_index);
 
 	// std::vector<gazebo::physics::JointPtr> gazebo_joints;

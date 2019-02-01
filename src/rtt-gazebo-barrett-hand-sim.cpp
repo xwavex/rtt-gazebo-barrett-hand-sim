@@ -26,7 +26,8 @@ BarrettHandSim::BarrettHandSim(const std::string &name) : TaskContext(name), is_
 														  p_gain(25.0),
 														  d_gain(1.0),
 														  velocity_gain(0.1),
-														  torque_switches(4, false)
+														  torque_switches(4, false),
+														  zeroing_active(false)
 //  , n_allJoints(8)
 {
 	this->provides("gazebo")->addOperation("WorldUpdateBegin",
@@ -46,6 +47,8 @@ BarrettHandSim::BarrettHandSim(const std::string &name) : TaskContext(name), is_
 	this->addOperation("close", &BarrettHandSim::close, this, ClientThread);
 	this->addOperation("openSpread", &BarrettHandSim::openSpread, this, ClientThread);
 	this->addOperation("closeSpread", &BarrettHandSim::closeSpread, this, ClientThread);
+
+	this->addOperation("scheduleZeroing", &BarrettHandSim::scheduleZeroing, this, ClientThread).doc("Zeroing of the sensor is scheduled for the next update cycle from gazebo.");
 
 	this->addProperty("currentControlMode", currentControlMode);
 
@@ -154,6 +157,7 @@ bool BarrettHandSim::configureHook()
 	if (parentJointForFT)
 	{
 		out_hand_FT = rstrt::dynamics::Wrench();
+		zero_hand_FT = rstrt::dynamics::Wrench();
 		this->addPort("hand_FT", out_hand_FT_port).doc("Output port for the force torque feedback.");
 		out_hand_FT_port.setDataSample(out_hand_FT);
 	}
@@ -470,6 +474,11 @@ void BarrettHandSim::run()
 void BarrettHandSim::setCompliance(bool enable)
 {
 	compliance_enabled = enable;
+}
+
+void BarrettHandSim::scheduleZeroing()
+{
+	zeroing_active = true;
 }
 
 bool BarrettHandSim::withinTorqueLimits(const unsigned joint_id)
