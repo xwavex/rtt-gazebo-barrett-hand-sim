@@ -98,6 +98,10 @@ protected:
 	RTT::OutputPort<rstrt::dynamics::Wrench> out_hand_FT_port;
 	rstrt::dynamics::Wrench out_hand_FT;
 
+	RTT::OutputPort<bool> out_converged_port;
+	bool out_converged;
+	int internal_converged_status;
+
 	RTT::InputPort<rstrt::kinematics::JointAngles> in_hand_JointPositionCtrl_port;
 	RTT::FlowStatus in_hand_JointPositionCtrl_flow;
 	rstrt::kinematics::JointAngles in_hand_JointPositionCtrl;
@@ -141,6 +145,7 @@ protected:
 	void closeSpread();
 
 	bool doneMoving(const unsigned pair_index);
+	bool doneMovingAll();
 	bool withinTorqueLimits(const unsigned joint_index);
 
 	// std::vector<gazebo::physics::JointPtr> gazebo_joints;
@@ -200,7 +205,12 @@ private:
 
 	std::string urdf_prefix;
 
-	float s_angle, f_angle, b_angle;
+	float b_angle;
+
+	double convergedStartTime;
+	double inhibitionTimeConverged;
+	double velocityThresholdCovergence;
+	// float s_angle, f_angle;
 };
 
 } // namespace cosima

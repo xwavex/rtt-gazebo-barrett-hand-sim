@@ -23,11 +23,16 @@ BarrettHandSim::BarrettHandSim(const std::string &name) : TaskContext(name), is_
 														  joint_torque(8),
 														  joint_torque_max(Eigen::VectorXd::Constant(8, 1.5)),
 														  joint_torque_breakaway(4),
-														  p_gain(3.0),
+														  p_gain(30.0),
 														  d_gain(0.1),
 														  velocity_gain(0.1),
 														  torque_switches(4, false),
-														  zeroing_active(false)
+														  zeroing_active(false),
+														  out_converged(true),
+														  convergedStartTime(0.0),
+														  inhibitionTimeConverged(0.1),
+														  velocityThresholdCovergence(0.01),
+														  internal_converged_status(0)
 //  , n_allJoints(8)
 {
 	this->provides("gazebo")->addOperation("WorldUpdateBegin",
@@ -62,16 +67,22 @@ BarrettHandSim::BarrettHandSim(const std::string &name) : TaskContext(name), is_
 
 	this->addProperty("urdf_prefix", urdf_prefix);
 
-	s_angle = 0;
-	f_angle = 0;
+	this->addProperty("out_converged", out_converged);
+
+	this->addProperty("inhibitionTimeConverged", inhibitionTimeConverged);
+
+	this->addProperty("velocityThresholdCovergence", velocityThresholdCovergence);
+
+	// s_angle = 0;
+	// f_angle = 0;
 	b_angle = 0;
-	this->addProperty("s_angle", s_angle);
-	this->addProperty("f_angle", f_angle);
+	// this->addProperty("s_angle", s_angle);
+	// this->addProperty("f_angle", f_angle);
 	this->addProperty("b_angle", b_angle);
 
 	for (unsigned i = 0; i < N_PUCKS; i++)
 	{
-		trap_generators.push_back(KDL::VelocityProfile_Trap(1.0, 0.1));
+		trap_generators.push_back(KDL::VelocityProfile_Trap(4.0, 0.8));
 		trap_start_times.push_back(0.0);
 	}
 
@@ -156,6 +167,11 @@ bool BarrettHandSim::configureHook()
 	this->addPort("hand_JointFeedback", out_hand_JointFeedback_port).doc("Output port for the joint feedback.");
 	// rstrt::robot::JointState out_hand_JointFeedback = rstrt::robot::JointState(model_joints_.size());
 	out_hand_JointFeedback_port.setDataSample(out_hand_JointFeedback);
+
+	out_converged = true;
+	internal_converged_status = 1;
+	this->addPort("out_converged", out_converged_port).doc("Output port for the convergency criterion.");
+	out_converged_port.setDataSample(out_converged);
 
 	this->addPort("hand_JointPositionCtrl", in_hand_JointPositionCtrl_port).doc("Input port for commands based on position control mode");
 	in_hand_JointPositionCtrl_flow = RTT::NoData;
@@ -522,6 +538,31 @@ void BarrettHandSim::readSim()
 		out_hand_JointFeedback.torques[j] = model_joints_[j]->GetForce(0u);
 	}
 	// RTT::log(RTT::Error) << "reading from sim: " << out_hand_JointFeedback << RTT::endlog();
+
+	if ((getOrocosTime() - convergedStartTime) > inhibitionTimeConverged)
+	{
+		if (internal_converged_status == 0)
+		{
+			if (!doneMovingAll())
+			{
+				internal_converged_status = -1;
+
+				RTT::log(RTT::Error) << this->getName() << " : Change to moving" << RTT::endlog();
+				out_converged = false;
+				out_converged_port.write(false);
+			}
+		}
+		else if (internal_converged_status == -1)
+		{
+			if (doneMovingAll())
+			{
+				internal_converged_status = 1;
+				RTT::log(RTT::Error) << this->getName() << " : Change to converged" << RTT::endlog();
+				out_converged = true;
+				out_converged_port.write(true);
+			}
+		}
+	}
 }
 
 void BarrettHandSim::fixAngles()
@@ -698,6 +739,8 @@ void BarrettHandSim::writeFeedbackToOrocos()
 
 	this->out_hand_FT_port.write(out_hand_FT);
 
+	this->out_converged_port.write(out_converged);
+
 	// // Create a pose structure from the center of mass
 	// com_msg.pose.position.x = center_of_mass[0];
 	// com_msg.pose.position.y = center_of_mass[1];
@@ -814,10 +857,14 @@ void BarrettHandSim::readCommandsFromOrocos()
 		if (new_torque_cmd && currentControlMode == ControlModes::TorqueCtrl)
 		{
 			in_hand_JointTorqueCtrl = in_hand_JointTorqueCtrl_new;
+			convergedStartTime = getOrocosTime();
+			internal_converged_status = 0;
 		}
 		else if (new_position_cmd && currentControlMode == ControlModes::PositionCtrl)
 		{
 			in_hand_JointPositionCtrl = in_hand_JointPositionCtrl_new;
+			convergedStartTime = getOrocosTime();
+			internal_converged_status = 0;
 
 			for (int i = 0; i < N_PUCKS; i++)
 			{
@@ -830,6 +877,8 @@ void BarrettHandSim::readCommandsFromOrocos()
 		else if (new_velocity_cmd && currentControlMode == ControlModes::VelocityCtrl)
 		{
 			in_hand_JointVelocityCtrl = in_hand_JointVelocityCtrl_new;
+			convergedStartTime = getOrocosTime();
+			internal_converged_status = 0;
 		}
 		// 	else if (new_trapezoidal_cmd && joint_cmd.mode[i] == oro_barrett_msgs::BHandCmd::MODE_TRAPEZOIDAL)
 		// 	{
@@ -889,7 +938,22 @@ bool BarrettHandSim::doneMoving(const unsigned pair_index)
 	unsigned medial_id, distal_id;
 	fingerToJointIDs(pair_index, medial_id, distal_id);
 
-	return out_hand_JointFeedback.velocities[medial_id] < 0.01 && out_hand_JointFeedback.velocities[distal_id] < 0.01;
+	if ((currentControlMode == ControlModes::TrapezoidalCtrl) || (currentControlMode == ControlModes::PositionCtrl))
+	{
+		double pos = out_hand_JointFeedback.angles[medial_id] + (pair_index == 3 ? 0 : out_hand_JointFeedback.angles[distal_id]);
+
+		// RTT::log(RTT::Error) << "P " << in_hand_JointPositionCtrl.angles[pair_index] << ", F " << pos << ", E " << fabs(in_hand_JointPositionCtrl.angles[pair_index] - pos) << RTT::endlog();
+		return out_hand_JointFeedback.velocities[medial_id] < velocityThresholdCovergence && out_hand_JointFeedback.velocities[distal_id] < velocityThresholdCovergence && fabs(in_hand_JointPositionCtrl.angles[pair_index] - pos) < 0.03;
+	}
+	else
+	{
+		return out_hand_JointFeedback.velocities[medial_id] < velocityThresholdCovergence && out_hand_JointFeedback.velocities[distal_id] < velocityThresholdCovergence;
+	}
+}
+
+bool BarrettHandSim::doneMovingAll()
+{
+	return doneMoving(0) && doneMoving(1) && doneMoving(2) && doneMoving(3);
 }
 
 void BarrettHandSim::open()
@@ -915,6 +979,9 @@ void BarrettHandSim::open()
 		trap_generators[i].SetProfile(pos, in_hand_JointPositionCtrl.angles[i]);
 		trap_start_times[i] = getOrocosTime();
 	}
+	convergedStartTime = getOrocosTime();
+	internal_converged_status = 0;
+	RTT::log(RTT::Error) << "Change to 0" << RTT::endlog();
 }
 
 void BarrettHandSim::close()
@@ -943,6 +1010,9 @@ void BarrettHandSim::close()
 		trap_generators[i].SetProfile(pos, in_hand_JointPositionCtrl.angles[i]);
 		trap_start_times[i] = getOrocosTime();
 	}
+	convergedStartTime = getOrocosTime();
+	internal_converged_status = 0;
+	RTT::log(RTT::Error) << "Change to 0" << RTT::endlog();
 }
 
 void BarrettHandSim::openSpread()
@@ -964,6 +1034,8 @@ void BarrettHandSim::openSpread()
 		trap_generators[i].SetProfile(pos, in_hand_JointPositionCtrl.angles[i]);
 		trap_start_times[i] = getOrocosTime();
 	}
+	convergedStartTime = getOrocosTime();
+	internal_converged_status = 0;
 }
 
 void BarrettHandSim::closeSpread()
@@ -985,6 +1057,8 @@ void BarrettHandSim::closeSpread()
 		trap_generators[i].SetProfile(pos, in_hand_JointPositionCtrl.angles[i]);
 		trap_start_times[i] = getOrocosTime();
 	}
+	convergedStartTime = getOrocosTime();
+	internal_converged_status = 0;
 }
 
 ORO_CREATE_COMPONENT_LIBRARY()
