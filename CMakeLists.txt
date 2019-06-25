@@ -61,7 +61,7 @@ include_directories(
 
 # file(GLOB_RECURSE rtt_gazebo_omnirob_sim_INCLUDES "${CMAKE_CURRENT_SOURCE_DIR}/src" *.h)
 
-orocos_component(${PROJECT_NAME} src/rtt-gazebo-barrett-hand-sim.cpp src/rtt-gazebo-barrett-hand-sim_hooks.cpp)
+orocos_component(${PROJECT_NAME} src/rtt-gazebo-barrett-hand-sim.cpp src/rtt-gazebo-barrett-hand-sim_hooks.cpp src/utilities/rtt-gazebo-visual-marker.cpp)
 set_property(TARGET ${PROJECT_NAME} APPEND PROPERTY COMPILE_DEFINITIONS RTT_COMPONENT)
 
 target_link_libraries(${PROJECT_NAME}

@@ -44,7 +44,7 @@ namespace cosima
 
 class BarrettHandSim : public RTT::TaskContext
 {
-  public:
+public:
 	BarrettHandSim(std::string const &name);
 	bool configureHook();
 	void updateHook();
@@ -54,10 +54,11 @@ class BarrettHandSim : public RTT::TaskContext
 	// {
 	// }
 
-  protected:
+protected:
 	bool getModel(const std::string &model_name);
 	void gazeboUpdateHook(gazebo::physics::ModelPtr model);
 	bool gazeboConfigureHook(gazebo::physics::ModelPtr model);
+	double getOrocosTime();
 
 	bool registerSensors();
 
@@ -159,7 +160,7 @@ class BarrettHandSim : public RTT::TaskContext
 		joint_torque_breakaway;
 
 	std::vector<KDL::VelocityProfile_Trap> trap_generators;
-	// std::vector<ros::Time> trap_start_times;
+	std::vector<double> trap_start_times;
 	std::vector<bool> torque_switches;
 
 	double
@@ -187,7 +188,7 @@ class BarrettHandSim : public RTT::TaskContext
 
 	void fixAngles();
 
-  private:
+private:
 	bool is_configured;
 
 	std::string currentControlMode;

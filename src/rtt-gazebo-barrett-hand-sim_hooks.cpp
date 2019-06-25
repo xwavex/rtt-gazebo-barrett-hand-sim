@@ -8,7 +8,7 @@ using namespace Eigen;
 
 void BarrettHandSim::WorldUpdateBegin()
 {
-	if (!is_configured && !isRunning())
+	if (!is_configured) // || !isRunning())
 		return;
 
 	// baseOrientation = model->GetWorldPose().rot;
@@ -26,7 +26,7 @@ void BarrettHandSim::WorldUpdateBegin()
 
 void BarrettHandSim::WorldUpdateEnd()
 {
-	if (!is_configured && !isRunning())
+	if (!is_configured) // || !isRunning())
 		return;
 
 	// model->SetLinearVel(newLinVel);
