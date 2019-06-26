@@ -157,6 +157,9 @@ bool BarrettHandSim::configureHook()
 					 << endlog();
 		return false;
 	}
+
+	// RTT::log(RTT::Error) << model->GetSDF()->ToString("") << RTT::endlog();
+
 	// setupPorts();
 	// setupVars();
 

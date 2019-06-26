@@ -36,12 +36,17 @@ void BarrettHandSim::WorldUpdateEnd()
 	{
 		gazebo::physics::JointWrench wrench = this->parentJointForFT->GetForceTorque(0u);
 
-		gazebo::math::Vector3 measuredForce = wrench.body2Force;
-		gazebo::math::Vector3 measuredTorque = wrench.body2Torque;
+		gazebo::math::Vector3 measuredForce = -wrench.body2Force;
+		gazebo::math::Vector3 measuredTorque = -wrench.body2Torque;
 
 		// RTT::log(RTT::Error) << "reading from sim:\n2:\n"
 		// 					 << wrench.body2Force << "\n1:\n"
 		// 					 << (-1 * wrench.body1Force) << RTT::endlog();
+
+		// 1) PARENT_LINK + parentToChild => wrench.body1Force
+		// 2) PARENT_LINK + childToParent => -wrench.body1Force
+		// 3) CHILD_LINK + parentToChild => wrench.body2Force
+		// 4) CHILD_LINK + childToParent => -wrench.body2Force
 
 		if (zeroing_active)
 		{
