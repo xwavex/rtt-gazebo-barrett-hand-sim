@@ -15,8 +15,8 @@ using namespace Eigen;
 
 BarrettHandSim::BarrettHandSim(const std::string &name) : TaskContext(name), is_configured(false), N_PUCKS(4), urdf_prefix(""),
 														  compliance_enabled(false),
-														  breakaway_torque(1.0),
-														  stop_torque(3),
+														  breakaway_torque(0.5),
+														  stop_torque(0.5),
 														  link_torque(4),
 														  fingertip_torque(4),
 														  breakaway_angle(4),
@@ -717,7 +717,14 @@ void BarrettHandSim::writeSim()
 				if (joint_torque > 0)
 				{
 					model_joints_[mid]->SetForce(0, breakaway_torque);
-					model_joints_[did]->SetForce(0, FINGER_JOINT_RATIO * joint_torque);
+					if (fingertip_torque[i] > stop_torque)
+					{
+						model_joints_[did]->SetForce(0, stop_torque);
+					}
+					else
+					{
+						model_joints_[did]->SetForce(0, FINGER_JOINT_RATIO * joint_torque);
+					}
 					// Update the position during breakaway
 					breakaway_angle[i] = out_hand_JointFeedback.angles[did];
 				}
