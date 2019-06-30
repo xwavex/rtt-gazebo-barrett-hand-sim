@@ -720,6 +720,8 @@ void BarrettHandSim::writeSim()
 					if (fingertip_torque[i] > stop_torque)
 					{
 						model_joints_[did]->SetForce(0, stop_torque);
+						out_converged = true;
+						out_converged_port.write(true);
 					}
 					else
 					{
@@ -733,6 +735,8 @@ void BarrettHandSim::writeSim()
 					model_joints_[mid]->SetForce(0, joint_torque);
 					// Keep the joint at the angle it was while it was still tightening
 					model_joints_[did]->SetForce(0, KNUCKLE_GAIN * (breakaway_angle[i] - out_hand_JointFeedback.angles[did]));
+					out_converged = true;
+					out_converged_port.write(true);
 				}
 			}
 		}
