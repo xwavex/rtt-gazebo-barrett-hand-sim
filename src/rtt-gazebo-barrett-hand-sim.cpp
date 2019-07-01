@@ -73,6 +73,9 @@ BarrettHandSim::BarrettHandSim(const std::string &name) : TaskContext(name), is_
 
 	this->addProperty("velocityThresholdCovergence", velocityThresholdCovergence);
 
+	this->addProperty("myGainHack", myGainHack);
+	myGainHack = 0.8;
+
 	// s_angle = 0;
 	// f_angle = 0;
 	b_angle = 0;
@@ -709,7 +712,7 @@ void BarrettHandSim::writeSim()
 				// Torque switch has not broken away
 				model_joints_[mid]->SetForce(0, joint_torque);
 				// Distal joint position is coupled with median joint position
-				model_joints_[did]->SetForce(0, KNUCKLE_GAIN * (FINGER_JOINT_RATIO * out_hand_JointFeedback.angles[mid] - out_hand_JointFeedback.angles[did]));
+				model_joints_[did]->SetForce(0, myGainHack * KNUCKLE_GAIN * (FINGER_JOINT_RATIO * out_hand_JointFeedback.angles[mid] - out_hand_JointFeedback.angles[did]));
 			}
 			else
 			{
@@ -725,7 +728,7 @@ void BarrettHandSim::writeSim()
 					}
 					else
 					{
-						model_joints_[did]->SetForce(0, FINGER_JOINT_RATIO * joint_torque);
+						model_joints_[did]->SetForce(0, myGainHack * FINGER_JOINT_RATIO * joint_torque);
 					}
 					// Update the position during breakaway
 					breakaway_angle[i] = out_hand_JointFeedback.angles[did];

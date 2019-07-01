@@ -210,6 +210,8 @@ private:
 	double convergedStartTime;
 	double inhibitionTimeConverged;
 	double velocityThresholdCovergence;
+
+	double myGainHack;
 	// float s_angle, f_angle;
 };
 
