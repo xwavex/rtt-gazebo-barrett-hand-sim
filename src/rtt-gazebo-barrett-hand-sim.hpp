@@ -140,6 +140,7 @@ protected:
 	const bool fingerToJointIDs(const uint finger_id, uint &medial_id, uint &distal_id);
 
 	void open();
+	void openTriangle();
 	void close();
 	void openSpread();
 	void closeSpread();

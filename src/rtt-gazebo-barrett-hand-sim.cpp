@@ -52,6 +52,7 @@ BarrettHandSim::BarrettHandSim(const std::string &name) : TaskContext(name), is_
 	this->addOperation("close", &BarrettHandSim::close, this, ClientThread);
 	this->addOperation("openSpread", &BarrettHandSim::openSpread, this, ClientThread);
 	this->addOperation("closeSpread", &BarrettHandSim::closeSpread, this, ClientThread);
+	this->addOperation("openTriangle", &BarrettHandSim::openTriangle, this, ClientThread);
 
 	this->addOperation("scheduleZeroing", &BarrettHandSim::scheduleZeroing, this, ClientThread).doc("Zeroing of the sensor is scheduled for the next update cycle from gazebo.");
 
@@ -167,6 +168,10 @@ bool BarrettHandSim::configureHook()
 	// setupVars();
 
 	bool isconfigured = gazeboConfigureHook(model);
+	if (!isconfigured)
+	{
+		return false;
+	}
 	// this->initialize();
 
 	out_hand_JointFeedback = rstrt::robot::JointState(model_joints_.size());
@@ -323,6 +328,129 @@ bool BarrettHandSim::gazeboConfigureHook(gazebo::physics::ModelPtr model)
 	{
 		RTT::log(RTT::Error) << "Force Torque Sensor not found! Link " << urdf_prefix << "bhand_palm_link not found!" << RTT::endlog();
 	}
+
+	gazebo::physics::LinkPtr finger_1_prox_link = model->GetLink(urdf_prefix + "finger_1/prox_link");
+	if (finger_1_prox_link)
+	{
+		finger_1_prox_link->SetGravityMode(false);
+	}
+	else
+	{
+		RTT::log(RTT::Error) << "Link [" << (urdf_prefix + "finger_1/prox_link") << "] not found!" << RTT::endlog();
+		return false;
+	}
+
+	gazebo::physics::LinkPtr finger_1_med_link = model->GetLink(urdf_prefix + "finger_1/med_link");
+	if (finger_1_med_link)
+	{
+		finger_1_med_link->SetGravityMode(false);
+	}
+	else
+	{
+		RTT::log(RTT::Error) << "Link [" << (urdf_prefix + "finger_1/med_link") << "] not found!" << RTT::endlog();
+		return false;
+	}
+
+	gazebo::physics::LinkPtr finger_1_dist_link = model->GetLink(urdf_prefix + "finger_1/dist_link");
+	if (finger_1_dist_link)
+	{
+		finger_1_dist_link->SetGravityMode(false);
+	}
+	else
+	{
+		RTT::log(RTT::Error) << "Link [" << (urdf_prefix + "finger_1/dist_link") << "] not found!" << RTT::endlog();
+		return false;
+	}
+
+	// gazebo::physics::LinkPtr finger_1_tip_link = model->GetLink(urdf_prefix + "finger_1/tip_link");
+	// if (finger_1_tip_link)
+	// {
+	// 	finger_1_tip_link->SetGravityMode(false);
+	// }
+	// else
+	// {
+	// 	RTT::log(RTT::Error) << "Link [" << (urdf_prefix + "finger_1/tip_link") << "] not found!" << RTT::endlog();
+	// 	return false;
+	// }
+
+	gazebo::physics::LinkPtr finger_2_prox_link = model->GetLink(urdf_prefix + "finger_2/prox_link");
+	if (finger_2_prox_link)
+	{
+		finger_2_prox_link->SetGravityMode(false);
+	}
+	else
+	{
+		RTT::log(RTT::Error) << "Link [" << (urdf_prefix + "finger_2/prox_link") << "] not found!" << RTT::endlog();
+		return false;
+	}
+
+	gazebo::physics::LinkPtr finger_2_med_link = model->GetLink(urdf_prefix + "finger_2/med_link");
+	if (finger_2_med_link)
+	{
+		finger_2_med_link->SetGravityMode(false);
+	}
+	else
+	{
+		RTT::log(RTT::Error) << "Link [" << (urdf_prefix + "finger_2/med_link") << "] not found!" << RTT::endlog();
+		return false;
+	}
+
+	gazebo::physics::LinkPtr finger_2_dist_link = model->GetLink(urdf_prefix + "finger_2/dist_link");
+	if (finger_2_dist_link)
+	{
+		finger_2_dist_link->SetGravityMode(false);
+	}
+	else
+	{
+		RTT::log(RTT::Error) << "Link [" << (urdf_prefix + "finger_2/dist_link") << "] not found!" << RTT::endlog();
+		return false;
+	}
+
+	// gazebo::physics::LinkPtr finger_2_tip_link = model->GetLink(urdf_prefix + "finger_2/tip_link");
+	// if (finger_2_tip_link)
+	// {
+	// 	finger_2_tip_link->SetGravityMode(false);
+	// }
+	// else
+	// {
+	// 	RTT::log(RTT::Error) << "Link [" << (urdf_prefix + "finger_2/tip_link") << "] not found!" << RTT::endlog();
+	// 	return false;
+	// }
+
+	gazebo::physics::LinkPtr finger_3_med_link = model->GetLink(urdf_prefix + "finger_3/med_link");
+	if (finger_3_med_link)
+	{
+		finger_3_med_link->SetGravityMode(false);
+	}
+	else
+	{
+		RTT::log(RTT::Error) << "Link [" << (urdf_prefix + "finger_3/med_link") << "] not found!" << RTT::endlog();
+		return false;
+	}
+
+	gazebo::physics::LinkPtr finger_3_dist_link = model->GetLink(urdf_prefix + "finger_3/dist_link");
+	if (finger_3_dist_link)
+	{
+		finger_3_dist_link->SetGravityMode(false);
+	}
+	else
+	{
+		RTT::log(RTT::Error) << "Link [" << (urdf_prefix + "finger_3/dist_link") << "] not found!" << RTT::endlog();
+		return false;
+	}
+
+	// gazebo::physics::LinkPtr finger_3_tip_link = model->GetLink(urdf_prefix + "finger_3/tip_link");
+	// if (finger_3_tip_link)
+	// {
+	// 	finger_3_tip_link->SetGravityMode(false);
+	// }
+	// else
+	// {
+	// 	RTT::log(RTT::Error) << "Link [" << (urdf_prefix + "finger_3/tip_link") << "] not found!" << RTT::endlog();
+	// 	return false;
+	// }
+
+	// Joints
 
 	gazebo::physics::JointPtr f1prox_joint = model->GetJoint(urdf_prefix + "finger_1/prox_joint");
 	if (f1prox_joint)
@@ -1039,6 +1167,29 @@ void BarrettHandSim::openSpread()
 
 	in_hand_JointVelocityCtrl.velocities.setZero();
 	in_hand_JointPositionCtrl.angles[3] = 0.0;
+
+	for (int i = 0; i < N_PUCKS; i++)
+	{
+		unsigned medial_id = 0, distal_id = 0;
+		fingerToJointIDs(i, medial_id, distal_id);
+
+		double pos = out_hand_JointFeedback.angles[medial_id] + (i == 3 ? 0 : out_hand_JointFeedback.angles[distal_id]);
+		double vel = out_hand_JointFeedback.velocities[medial_id] + (i == 3 ? 0 : out_hand_JointFeedback.velocities[distal_id]);
+
+		trap_generators[i].SetProfile(pos, in_hand_JointPositionCtrl.angles[i]);
+		trap_start_times[i] = getOrocosTime();
+	}
+	// convergedStartTime = getOrocosTime();
+	internal_converged_status = 0;
+}
+
+void BarrettHandSim::openTriangle()
+{
+	// Close by setting negative velocity
+	setControlMode(ControlModes::TrapezoidalCtrl);
+
+	in_hand_JointVelocityCtrl.velocities.setZero();
+	in_hand_JointPositionCtrl.angles[3] = 1.05;
 
 	for (int i = 0; i < N_PUCKS; i++)
 	{
